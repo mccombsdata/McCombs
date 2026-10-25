@@ -1,30 +1,52 @@
-# Fixing the Fizz — Interactive dashboard (v2)
+# Fixing the Fizz · v3
 
-Streamlit prototype integrating the **weekly-item-store sales/inventory file** and the **six-week FTPR summary** for the deidentified Walmart/McCombs class project.
+An interactive Streamlit dashboard for the deidentified and perturbed Walmart / McCombs retail DSD case. It uses the **two CSVs uploaded by the dashboard viewer**; no private case data or credentials are packaged in this repository.
 
-## Run on your computer (recommended initially)
+## What's new in v3
 
-1. Install [Python 3.10+](https://www.python.org/downloads/) if necessary.
-2. Unzip this folder. Open a Terminal in the project folder.
-3. Install dependencies:
+- Cleaner blue/white executive view, polished KPI tiles and consistent chart design.
+- Overview focuses on the *recorded sales footprint* and observed in-stock availability instead of stacking uncontextualized charts.
+- Brand comparison by **category**, with sample-count thresholds, coverage metrics, and spreadsheet export.
+- **Priority Finder**: shortlist brand × store, product × store, or brand groups with a combination of recorded sales, availability below an illustrative reference (default 95%), enough sampled observations, and sufficient valid availability data.
+- Improved store explorer with heatmap and trends on **sampled dates**.
+- Six-week online-picking view still correctly aligns store × item aggregated daily rows to each FTPR store × item record; does not accidentally apply the year-long sales-date filter to FTPR.
+- Dedicated data-quality section explaining missing CSD SINGLES availability and discrepancies between published FTPR and its numerator/denominator.
+- **Session-scoped cached data** via Streamlit 1.55+ instead of default global caching. This reduces cross-session sharing of cached uploads, but **does not make public cloud hosting safe or authorized**.
 
-   ```bash
-   python3 -m pip install -r requirements.txt
-   ```
+## Update your existing GitHub / Streamlit deployment
 
-4. Start the app:
+You do **not** need to create another Streamlit app or install anything on your Mac.
 
-   ```bash
-   python3 -m streamlit run app.py
-   ```
+1. Unzip this download.
+2. Open the GitHub repository connected to your working Streamlit app.
+3. Replace **`app.py`**, **`analysis.py`**, **`requirements.txt`**, and optionally **`README.md`** with the copies from this folder; commit changes. The included `.streamlit/config.toml` changes only the colors and upload limit, and is optional.
+4. Streamlit Community Cloud automatically redeploys after it detects a GitHub commit. Because `requirements.txt` changed, allow it to install the new Streamlit version.
+5. Refresh the app, then re-upload the original CSVs through the sidebar.
 
-5. Upload each CSV through the dashboard's sidebar:
-   - `sparkle_case_daily_sales_instock.csv`
-   - `sparkle_case_ftpr_summary.csv`
+**Do NOT upload** `sparkle_case_daily_sales_instock.csv`, `sparkle_case_ftpr_summary.csv`, or any other private data to GitHub. `.gitignore` is a safety net, not a guarantee: review what you're committing. Keep your repository *and the Streamlit app* private, if the sponsor approves cloud use.
 
-Alternatively, create a local `data/` folder beside `app.py` and place **both** CSVs inside it. The app will load them automatically. The `data/` directory is ignored by Git and is not packaged with this code.
+### Data inputs
 
-If `pip install` reports that Python is externally managed, create a virtual environment first:
+- `sparkle_case_daily_sales_instock.csv` — store × item × sampled weekly date, ~479k rows.
+- `sparkle_case_ftpr_summary.csv` — store × item × six-week FTPR window, ~10.9k rows.
+
+For offline use with sponsor-authorized local data, put the CSVs in a `data/` folder beside `app.py`; `.gitignore` excludes that folder. On a shared Streamlit Cloud deployment, do *not* bundle real case data into `data/`.
+
+## Reading the dashboard correctly
+
+- **Recorded sales**: sums of the case's observed **sampled dates**. This is *not* a full-year daily sales total, and the source numbers have been perturbed.
+- **Average availability**: unweighted average of nonmissing `frac_instk_pct`, converted to a displayed percentage. It is not sales-weighted, demand-weighted, or assortment/mix-adjusted.
+- **Coverage**: share of records where in-stock is populated. CSD SINGLES has no availability values in the supplied data.
+- **Availability reference**: default 95% is a hypothetical screening threshold, **not a confirmed Walmart target**. The Priority Finder flags candidates for inspection; it does **not** calculate lost sales.
+- **FTPR**: mean of *published, reported* store-item rates across the FTPR period (2026-08-09 through 2026-09-19). These rates are not order-weighted; rate and count fields do not always reconcile due to data perturbation.
+- **FTPR alignment**: aggregate weekly observations from the FTPR period to store-item first; then do a one-to-one join to FTPR. Don't merge raw weekly rows directly or you will double count FTPR records.
+- **SYNTHETIC** delivery and merchandising fields are simulated and cannot establish root cause or causality.
+
+## Security model
+
+The Streamlit file uploader transfers browser-uploaded CSVs to the server, so data is processed **wherever the app is hosted**. In Streamlit Cloud that's a third-party cloud provider. Session-scoped caches limit cross-session availability of cached data, but are not a substitute for authorization, authentication, data classification, a client-approved hosting location, retention controls, or access logs. Upload case data to a hosted instance only after sponsor/client approval. A public GitHub repo is appropriate for code **only** if the project permits public code sharing. Avoid embedding any data samples from the case in public code, screenshots, or bug reports.
+
+## Local development
 
 ```bash
 python3 -m venv .venv
@@ -33,47 +55,4 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## What it includes
-
-- Executive overview: sales, units, availability, covered categories.
-- Brand intelligence: revenue and availability scatter, side-by-side category comparison and table.
-- Store explorer: store rankings, brand/store in-stock heatmap, weekly trends.
-- FTPR + inventory: six-week FTPR metrics and paired product-store availability *correctly matched at the same grain and time window*.
-- Operations: exploratory synthetic delivery and merchandising diagnostics.
-- Data quality: missingness by category, pair match rate and discrepancies between provided FTPR rates and component counts.
-- CSV export of several summary tables.
-
-### Data and analytical limitations
-
-- Daily source is **52 sampled weekly dates**, not continuous daily transactions.
-- Daily in-stock availability is a **simple row average of observed non-missing values**. It is not demand weighted, mix adjusted or a lost-sales calculation.
-- All `CSD SINGLES` in-stock percentages are missing. Do not assume zero availability.
-- FTPR summary refers only to **2026-08-09 to 2026-09-19**. Although users can filter the full-year sales tabs by date, the **FTPR tab deliberately ignores the date picker** and aligns daily data to the full six-week FTPR window for valid side-by-side diagnostics.
-- FTPR is summarized as the **unweighted mean of the reported store-item FTPR percentages** to avoid mixing inconsistent numerators and percentages in perturbed case data; it is *not* an order-weighted pick rate. The Data Quality tab reports a metric reconciliation check.
-- We aggregate daily data to a single record per **store × item** *before* joining it to FTPR. Never join raw daily rows to FTPR without first aggregating.
-- Operational fields labeled `SYNTHETIC` are simulated. Correlations are not evidence of causation.
-- Case sales, inventory and rate figures are deidentified/perturbed; they are **not actual Walmart financial results**.
-
-## Collaboration and client sharing
-
-1. Use a private GitHub repository to collaborate **on code only**. `.gitignore` excludes local CSVs and `data/`.
-2. Keep a version-controlled README documenting data definitions, sources, and limitations.
-3. Confirm with the case sponsor/client whether cloud hosting and external sharing are authorized.
-4. Streamlit Community Cloud may work for an approved private prototype; for controlled enterprise client delivery, prefer an organization-approved host with SSO, permissions, and access logs.
-5. Do not assume a private GitHub repository makes a Streamlit app private. Separately configure viewer authorization. Avoid embedding confidential data in source code, release archives, commits or shared links.
-6. This is a read-only analytics dashboard. Collaborative source editing is provided through GitHub; live multi-user editing/annotations would require additional application features and a shared database.
-
-## Project files
-
-- `app.py` — Streamlit UI.
-- `analysis.py` — CSV loading, aggregations, six-week period alignment, quality metrics.
-- `requirements.txt` — Python dependencies.
-- `.gitignore` — prevents accidental commits of private data.
-- `.streamlit/config.toml` — Streamlit appearance.
-
-## Troubleshooting
-
-- `ModuleNotFoundError: streamlit`: run the install command again inside the same Python environment.
-- `File not found`: upload in the sidebar or place exact CSV filenames under `data/`.
-- Slow initial load: 113 MB is manageable, but processing the first read may take several seconds. Subsequent dashboard interactions use Streamlit's cache.
-- Sharing: do not upload or commit data to a public repo; obtain explicit authorization before any third-party hosting.
+For Streamlit documentation: https://docs.streamlit.io/
